@@ -5,7 +5,7 @@ import time
 def scrape_website(url):
     print("Launching Chrome browser...")
 
-    chrome_driver_path = "/usr/local/bin/chromedriver"
+    chrome_driver_path = "./chromedriver/chromedriver"
     options = webdriver.ChromeOptions()
     driver = webdriver.Chrome(service=Service(chrome_driver_path), options=options)
 
@@ -15,8 +15,6 @@ def scrape_website(url):
         html = driver.page_source
         time.sleep(10)
         return html
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
+
     finally:
         driver.quit()
