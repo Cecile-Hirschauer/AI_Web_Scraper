@@ -1,57 +1,24 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver import Remote, ChromeOptions
+from selenium.webdriver.chromium.remote_connection import ChromiumRemoteConnection
+from selenium.webdriver.common.by import By
 import os
-import time
+from dotenv import load_dotenv
+
+load_dotenv()
+
+AUTH = os.getenv('BRD_AUTH')
+SBR_WEBDRIVER = f'https://{AUTH}@brd.superproxy.io:9515'
+
 
 def scrape_website(url):
-    """Scrape un site web en utilisant Selenium avec Chromium."""
-    print(f"Configuration pour scraper {url}")
-    
-    # Structure de dossier pour les données du navigateur
-    user_data_dir = os.path.abspath("./chrome_data")
-    os.makedirs(user_data_dir, exist_ok=True)
-    
-    # Chemin du chromedriver
-    chrome_driver_path = os.path.abspath("./chromedriver/chromedriver")
-    
-    # Vérifier et configurer les permissions
-    if os.path.exists(chrome_driver_path):
-        os.chmod(chrome_driver_path, 0o755)
-    else:
-        print(f"ATTENTION: chromedriver non trouvé à {chrome_driver_path}")
-    
-    # Configuration des options
-    options = webdriver.ChromeOptions()
-    options.binary_location = "/usr/bin/chromium-browser"
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument(f"--user-data-dir={user_data_dir}")
-    options.add_argument("--remote-debugging-port=9222")
-    
-    # Créer le service
-    service = Service(chrome_driver_path)
-    
-    try:
-        print("Lancement du navigateur...")
-        driver = webdriver.Chrome(service=service, options=options)
-        
-        print(f"Navigation vers {url}")
-        driver.get(url)
-        time.sleep(5)
-        
-        print("Extraction du HTML...")
+    sbr_connection = ChromiumRemoteConnection(SBR_WEBDRIVER, 'goog', 'chrome')
+    with Remote(sbr_connection, options=ChromeOptions()) as driver:
+        print('Connected! Navigating...')
+        driver.get('https://amazon.fr')
+        print('Taking page screenshot to file page.png')
+        driver.get_screenshot_as_file('./page.png')
+        print('Navigated! Scraping page content...')
         html = driver.page_source
         return html
-        
-    except Exception as e:
-        msg = f"Erreur: {str(e)}"
-        print(msg)
-        return msg
-        
-    finally:
-        try:
-            driver.quit()
-            print("Navigateur fermé")
-        except:
-            pass
