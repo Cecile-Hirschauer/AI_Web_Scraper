@@ -1,21 +1,40 @@
 """Module for web scraping using Selenium with Bright Data proxy and BeautifulSoup."""
 
 import os
+import time
+from datetime import datetime
 
 from selenium.webdriver import Remote, ChromeOptions
 from selenium.webdriver.chromium.remote_connection import ChromiumRemoteConnection
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
+# Import the cache manager
+from cache_manager import load_from_cache, save_to_cache, clean_expired_cache
+
 load_dotenv()
 
 AUTH = os.getenv('BRD_AUTH')
 SBR_WEBDRIVER = f'https://{AUTH}@brd.superproxy.io:9515'
 
-def scrape_website(website):
+def scrape_website(website, use_cache=True, cache_expiry_hours=24):
     """Scrape website content using Selenium with Bright Data proxy, 
-    handling captcha automatically."""
+    handling captcha automatically. Uses cache when available and requested."""
+    
+    # Clean expired cache entries at the start
+    clean_expired_cache()
+    
+    # Check cache first if enabled
+    if use_cache:
+        cached_content, metadata = load_from_cache(website)
+        if cached_content:
+            timestamp = metadata.get('timestamp', 'unknown') if metadata else 'unknown'
+            print(f"Loading from cache. Cached on: {timestamp}")
+            return cached_content
+    
     print("Connecting to Scraping Browser...")
+    start_time = time.time()
+    
     sbr_connection = ChromiumRemoteConnection(SBR_WEBDRIVER, "goog", "chrome")
     with Remote(sbr_connection, options=ChromeOptions()) as driver:
         driver.get(website)
@@ -30,6 +49,17 @@ def scrape_website(website):
         print("Captcha solve status:", solve_res["value"]["status"])
         print("Navigated! Scraping page content...")
         html = driver.page_source
+        
+        # Save to cache if enabled
+        if use_cache:
+            metadata = {
+                'timestamp': datetime.now().isoformat(),
+                'scrape_time_seconds': time.time() - start_time,
+                'captcha_status': solve_res["value"]["status"]
+            }
+            save_to_cache(website, html, metadata, cache_expiry_hours)
+            print(f"Saved to cache. Scrape time: {metadata['scrape_time_seconds']:.2f} seconds")
+        
         return html
 
 
