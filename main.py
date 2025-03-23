@@ -10,6 +10,10 @@ from scrape import scrape_website, extract_body_content, clean_body_content, spl
 from parse import parse_with_ollama
 from cache_manager import CACHE_DIR, clean_expired_cache
 
+from cache_manager import generate_cache_key, get_cache_path
+
+from gsheets_storage import get_parsed_results, save_parsed_result, search_parsed_results
+
 st.set_page_config(page_title="AI Web Scraper", layout="wide")
 st.title("AI Web Scraper")
 
@@ -70,12 +74,13 @@ with st.sidebar:
     else:
         st.info("No cache directory exists yet")
 
+
+
 # Main content area
 url = st.text_input("Enter the URL of the website you want to scrape:")
 
 # Cache status indicator
 if url and st.session_state.use_cache:
-    from cache_manager import generate_cache_key, get_cache_path
     
     CACHE_KEY = generate_cache_key(url)
     cache_path = get_cache_path(CACHE_KEY)
@@ -133,7 +138,34 @@ if "dom_content" in st.session_state:
                 dom_chunks = split_dom_content(st.session_state.dom_content)
                 PARSED_RESULT = parse_with_ollama(dom_chunks, parse_description)
                 
+                # Save the result
+                save_parsed_result(st.session_state.current_url, parse_description, PARSED_RESULT)
+                
                 st.subheader("Parsed Result")
                 st.write(PARSED_RESULT)
+                st.success("Result parsed and saved successfully!")
         else:
             st.error("Please enter a description of what to parse")
+
+if st.sidebar.checkbox("Show Saved Results"):
+    st.header("Saved Results")
+    
+    search_term = st.text_input("Search in results:", key="search_results")
+    
+    if search_term:
+        results = search_parsed_results(search_term)
+    else:
+        results = get_parsed_results(limit=20)
+    
+    if results:
+        for idx, result in enumerate(results):
+            result_dict = dict(result) if not isinstance(result, dict) else result
+            DESCRIPTION = str(result_dict.get('parse_description', ''))
+            with st.expander(f"{result_dict.get('url')} - {DESCRIPTION[:50]}..."):
+                st.write(f"**URL:** {result_dict.get('url')}")
+                st.write(f"**Description:** {DESCRIPTION}")
+                st.write(f"**Timestamp:** {result_dict.get('timestamp')}")
+                st.text("Result:")
+                st.code(result_dict.get('result'))
+    else:
+        st.info("No results found.")
