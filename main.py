@@ -74,7 +74,14 @@ with st.sidebar:
     else:
         st.info("No cache directory exists yet")
 
-
+if st.sidebar.checkbox("Show Google Sheet Information"):
+    spreadsheet_id = os.getenv('SPREADSHEET_ID')
+    if spreadsheet_id:
+        st.info(f"Your current spreadsheet ID is: {spreadsheet_id}")
+        sheets_url = f"https://docs.google.com/spreadsheets/d/{spreadsheet_id}"
+        st.markdown(f"[Open in Google Sheets]({sheets_url})")
+    else:
+        st.warning("No spreadsheet ID found in configuration")
 
 # Main content area
 url = st.text_input("Enter the URL of the website you want to scrape:")
